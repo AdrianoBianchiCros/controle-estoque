@@ -1,5 +1,5 @@
 const express = require('express');
-const mysql = require('mysql2/promise'); // Usando a versão com Promises
+const mysql = require('mysql2/promise');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
@@ -7,26 +7,39 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// CONFIGURAÇÃO DO BANCO DE DADOS MYSQL
-// ATENÇÃO: Troque 'sua_senha' pela senha real do seu MySQL (geralmente vazia no XAMPP)
-const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '123456abc', 
-    database: 'controle_estoque',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
+// =========================================================
+// 1. CONFIGURAÇÃO DO BANCO DE DADOS (INTELIGENTE E UNIFICADA)
+// =========================================================
+let pool;
 
-// Rota 1: Buscar tudo (CORRIGIDA: Agora traz o ID da compra)
+if (process.env.JAWSDB_URL) {
+    // SE ESTIVER NO HEROKU (Usa a variável de ambiente do JawsDB)
+    console.log("Conectando ao banco do Heroku...");
+    pool = mysql.createPool(process.env.JAWSDB_URL);
+} else {
+    // SE ESTIVER NO SEU COMPUTADOR (Localhost)
+    console.log("Conectando ao banco Local...");
+    pool = mysql.createPool({
+        host: 'localhost',
+        user: 'root',
+        password: '123456abc', // Mantive a senha que você colocou no seu código
+        database: 'controle_estoque',
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    });
+}
+
+// =========================================================
+// 2. ROTAS DO SISTEMA
+// =========================================================
+
+// Rota 1: Buscar tudo (Traz produtos + histórico)
 app.get('/produtos', async (req, res) => {
     try {
         const [produtos] = await pool.query('SELECT * FROM produtos ORDER BY id DESC');
 
         for (let prod of produtos) {
-            // --- AQUI ESTAVA O ERRO ---
-            // Adicionei "id," logo no começo do SELECT abaixo
             const [historico] = await pool.query(
                 'SELECT id, fornecedor, data_compra as data, custo, qtd, numero_pedido FROM compras WHERE produto_id = ? ORDER BY data_compra DESC',
                 [prod.id]
@@ -49,13 +62,10 @@ app.get('/produtos', async (req, res) => {
 app.post('/produtos', async (req, res) => {
     const { nome, categoria } = req.body;
     try {
-        // No MySQL usamos '?' como placeholder
         const [result] = await pool.execute(
             'INSERT INTO produtos (nome, categoria) VALUES (?, ?)',
             [nome, categoria]
         );
-        
-        // No MySQL, o ID gerado vem em result.insertId
         res.json({ 
             id: result.insertId, 
             nome, 
@@ -70,7 +80,6 @@ app.post('/produtos', async (req, res) => {
 
 // Rota 3: Nova Compra (Entrada)
 app.post('/compras', async (req, res) => {
-    // ADICIONADO: numero_pedido no corpo da requisição
     const { produto_id, fornecedor, data, custo, qtd, numero_pedido } = req.body;
     try {
         await pool.execute(
@@ -84,31 +93,24 @@ app.post('/compras', async (req, res) => {
     }
 });
 
-app.listen(process.env.PORT ||3000, () => {
-    console.log('Servidor rodando');
-});
-
-// Rota 4: DELETAR Produto (e seu histórico)
+// Rota 4: DELETAR Produto (VERSÃO SIMPLIFICADA PARA EVITAR ERRO NO HEROKU)
 app.delete('/produtos/:id', async (req, res) => {
     const { id } = req.params;
-    const connection = await pool.getConnection(); // Pega conexão para garantir transação
     try {
-        await connection.beginTransaction();
-
-        // 1. Deleta todo o histórico desse produto
-        await connection.execute('DELETE FROM compras WHERE produto_id = ?', [id]);
+        // 1. Apaga o histórico primeiro
+        await pool.execute('DELETE FROM compras WHERE produto_id = ?', [id]);
         
-        // 2. Deleta o produto
-        await connection.execute('DELETE FROM produtos WHERE id = ?', [id]);
+        // 2. Apaga o produto
+        const [result] = await pool.execute('DELETE FROM produtos WHERE id = ?', [id]);
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Produto não encontrado." });
+        }
 
-        await connection.commit(); // Confirma
         res.json({ success: true });
     } catch (err) {
-        await connection.rollback(); // Cancela se der erro
-        console.error("Erro ao deletar:", err);
-        res.status(500).send("Erro ao deletar produto. Verifique o console.");
-    } finally {
-        connection.release();
+        console.error("ERRO GRAVE AO DELETAR:", err);
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -127,6 +129,7 @@ app.put('/produtos/:id', async (req, res) => {
         res.status(500).send("Erro ao atualizar produto");
     }
 });
+
 // Rota 6: EDITAR UMA COMPRA ESPECÍFICA
 app.put('/compras/:id', async (req, res) => {
     const { id } = req.params;
@@ -142,6 +145,7 @@ app.put('/compras/:id', async (req, res) => {
         res.status(500).send("Erro ao atualizar compra");
     }
 });
+
 // Rota 7: DELETAR UMA COMPRA ESPECÍFICA
 app.delete('/compras/:id', async (req, res) => {
     const { id } = req.params;
@@ -152,4 +156,12 @@ app.delete('/compras/:id', async (req, res) => {
         console.error(err);
         res.status(500).send("Erro ao deletar compra");
     }
+});
+
+// =========================================================
+// 3. INICIALIZAÇÃO DO SERVIDOR
+// =========================================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
 });

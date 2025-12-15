@@ -1,6 +1,7 @@
 // Variável global que mantém os dados na tela
 let produtos = [];
-const API_URL = "http://localhost:3000"; // Endereço do nosso servidor Node
+//const API_URL = "http://localhost:3000"; // Endereço do nosso servidor Node
+const API_URL = "https://nome-do-seu-app.herokuapp.com";
 
 // Função de fechar modal (Global)
 function fecharModal() {
