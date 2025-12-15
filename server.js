@@ -84,8 +84,8 @@ app.post('/compras', async (req, res) => {
     }
 });
 
-app.listen(3000, () => {
-    console.log('Servidor MySQL rodando na porta 3000');
+app.listen(process.env.PORT ||3000, () => {
+    console.log('Servidor rodando');
 });
 
 // Rota 4: DELETAR Produto (e seu histórico)
