@@ -8,7 +8,6 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// serve index.html, style.css, script.js
 app.use(express.static(__dirname));
 
 let pool;
@@ -33,7 +32,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// NOVO: lista de fabricantes (para o select do front)
+// Fabricantes vindo de PRODUTOS (Opção B)
 app.get('/fabricantes', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -42,7 +41,6 @@ app.get('/fabricantes', async (req, res) => {
       WHERE fabricante IS NOT NULL AND fabricante <> ''
       ORDER BY fabricante
     `);
-
     res.json(rows.map(r => r.fabricante));
   } catch (err) {
     console.error("ERRO /fabricantes:", err);
@@ -50,36 +48,32 @@ app.get('/fabricantes', async (req, res) => {
   }
 });
 
-
-
-
-// Buscar produtos + histórico
+// Buscar tudo
 app.get('/produtos', async (req, res) => {
   try {
     const [produtos] = await pool.query('SELECT * FROM produtos ORDER BY id DESC');
 
     for (let prod of produtos) {
-      try {
-        // Versão nova (com fabricante na compra)
-        const [historico] = await pool.query(
-          `SELECT id, fornecedor, fabricante, data_compra as data, custo, qtd, numero_pedido
-           FROM compras
-           WHERE produto_id = ?
-           ORDER BY data_compra DESC`,
-          [prod.id]
-        );
-        prod.historicoCompras = historico.map(h => ({ ...h, custo: parseFloat(h.custo) }));
-      } catch (e) {
-        // Fallback (caso a coluna fabricante ainda não exista)
-        const [historico] = await pool.query(
-          `SELECT id, fornecedor, data_compra as data, custo, qtd, numero_pedido
-           FROM compras
-           WHERE produto_id = ?
-           ORDER BY data_compra DESC`,
-          [prod.id]
-        );
-        prod.historicoCompras = historico.map(h => ({ ...h, custo: parseFloat(h.custo), fabricante: null }));
-      }
+      const [historico] = await pool.query(
+        `SELECT 
+            id,
+            fornecedor,
+            fabricante,
+            cor,
+            data_compra as data,
+            custo,
+            qtd,
+            numero_pedido
+         FROM compras
+         WHERE produto_id = ?
+         ORDER BY data_compra DESC`,
+        [prod.id]
+      );
+
+      prod.historicoCompras = historico.map(h => ({
+        ...h,
+        custo: parseFloat(h.custo)
+      }));
     }
 
     res.json(produtos);
@@ -89,8 +83,7 @@ app.get('/produtos', async (req, res) => {
   }
 });
 
-
-// Criar produto (mantenho como estava; pode ter fabricante também se você usa no cadastro)
+// Criar Produto
 app.post('/produtos', async (req, res) => {
   const { nome, categoria, fabricante } = req.body;
   try {
@@ -98,22 +91,30 @@ app.post('/produtos', async (req, res) => {
       'INSERT INTO produtos (nome, categoria, fabricante) VALUES (?, ?, ?)',
       [nome, categoria || null, fabricante || null]
     );
-    res.json({ id: result.insertId, nome, categoria: categoria || '', fabricante: fabricante || '', historicoCompras: [] });
+    res.json({
+      id: result.insertId,
+      nome,
+      categoria: categoria || '',
+      fabricante: fabricante || '',
+      historicoCompras: []
+    });
   } catch (err) {
     console.error(err);
     res.status(500).send("Erro ao salvar produto");
   }
 });
 
-// Nova compra (AGORA COM fabricante)
+// Nova Compra (COM cor)
 app.post('/compras', async (req, res) => {
-  const { produto_id, fornecedor, fabricante, data, custo, qtd, numero_pedido } = req.body;
+  const { produto_id, fornecedor, fabricante, cor, data, custo, qtd, numero_pedido } = req.body;
+
   try {
     await pool.execute(
-      `INSERT INTO compras (produto_id, fornecedor, fabricante, data_compra, custo, qtd, numero_pedido)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [produto_id, fornecedor, fabricante || null, data, custo, qtd, numero_pedido || null]
+      `INSERT INTO compras (produto_id, fornecedor, fabricante, cor, data_compra, custo, qtd, numero_pedido)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [produto_id, fornecedor, fabricante || null, cor || null, data, custo, qtd, numero_pedido || null]
     );
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -121,7 +122,7 @@ app.post('/compras', async (req, res) => {
   }
 });
 
-// Deletar produto
+// Deletar Produto
 app.delete('/produtos/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -135,10 +136,11 @@ app.delete('/produtos/:id', async (req, res) => {
   }
 });
 
-// Editar produto (mantenho fabricante do produto também)
+// Editar Produto
 app.put('/produtos/:id', async (req, res) => {
   const { id } = req.params;
   const { nome, categoria, fabricante } = req.body;
+
   try {
     await pool.execute(
       'UPDATE produtos SET nome = ?, categoria = ?, fabricante = ? WHERE id = ?',
@@ -151,17 +153,19 @@ app.put('/produtos/:id', async (req, res) => {
   }
 });
 
-// Editar compra (AGORA COM fabricante)
+// Editar Compra (COM cor)
 app.put('/compras/:id', async (req, res) => {
   const { id } = req.params;
-  const { fornecedor, fabricante, data, custo, qtd, numero_pedido } = req.body;
+  const { fornecedor, fabricante, cor, data, custo, qtd, numero_pedido } = req.body;
+
   try {
     await pool.execute(
       `UPDATE compras
-       SET fornecedor=?, fabricante=?, data_compra=?, custo=?, qtd=?, numero_pedido=?
+       SET fornecedor=?, fabricante=?, cor=?, data_compra=?, custo=?, qtd=?, numero_pedido=?
        WHERE id=?`,
-      [fornecedor, fabricante || null, data, custo, qtd, numero_pedido || null, id]
+      [fornecedor, fabricante || null, cor || null, data, custo, qtd, numero_pedido || null, id]
     );
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -169,7 +173,7 @@ app.put('/compras/:id', async (req, res) => {
   }
 });
 
-// Deletar compra
+// Deletar Compra
 app.delete('/compras/:id', async (req, res) => {
   const { id } = req.params;
   try {

@@ -1,9 +1,7 @@
 let produtos = [];
-let fabricantes = [];
-
 const API_URL = "";
 
-// ====== Utils ======
+// --------- MODAIS ----------
 function fecharModal() {
   const modal = document.getElementById('modal-detalhes');
   if (modal) modal.classList.add('hidden');
@@ -19,7 +17,7 @@ function mostrarAba(aba) {
   document.getElementById(`btn-${aba}`).classList.add('active');
 }
 
-// ====== Carregamentos ======
+// --------- FABRICANTES (Opção B: vem de produtos) ----------
 async function carregarFabricantes() {
   const selects = [
     document.getElementById('entrada-fabricante'),
@@ -64,22 +62,22 @@ async function carregarFabricantes() {
   }
 }
 
-
+// --------- INIT ----------
 async function init() {
   try {
-    const [respProdutos] = await Promise.all([
-      fetch(`${API_URL}/produtos`)
-    ]);
+    const response = await fetch(`${API_URL}/produtos`);
+    if (!response.ok) {
+      const txt = await response.text();
+      throw new Error(`HTTP ${response.status}: ${txt}`);
+    }
 
-    produtos = await respProdutos.json();
+    produtos = await response.json();
 
     atualizarSelectProdutos();
     renderizarTabela();
-
-    // fabricantes depende do endpoint novo
     await carregarFabricantes();
   } catch (error) {
-    console.error("Erro ao conectar com o banco de dados:", error);
+    console.error("Falha ao carregar produtos:", error);
     alert("Erro: Não foi possível carregar os produtos. Verifique se o servidor (Node.js) está rodando.");
   }
 
@@ -101,7 +99,7 @@ function atualizarSelectProdutos() {
   });
 }
 
-// ====== CADASTRO PRODUTO ======
+// --------- CADASTRAR PRODUTO ----------
 document.getElementById('form-produto').addEventListener('submit', async function (e) {
   e.preventDefault();
 
@@ -117,16 +115,12 @@ document.getElementById('form-produto').addEventListener('submit', async functio
     });
 
     if (response.ok) {
-      const novoProd = await response.json();
-      novoProd.historicoCompras = novoProd.historicoCompras || [];
-      produtos.unshift(novoProd);
-
       alert('Produto salvo!');
       e.target.reset();
-      atualizarSelectProdutos();
-      renderizarTabela();
+      await init(); // recarrega para atualizar lista e fabricantes
     } else {
-      alert('Erro ao salvar produto.');
+      const txt = await response.text();
+      alert('Erro ao salvar produto: ' + txt);
     }
   } catch (error) {
     console.error(error);
@@ -134,28 +128,29 @@ document.getElementById('form-produto').addEventListener('submit', async functio
   }
 });
 
-// ====== REGISTRAR COMPRA (AGORA COM fabricante) ======
+// --------- REGISTRAR COMPRA (COM COR) ----------
 document.getElementById('form-entrada').addEventListener('submit', async function (e) {
   e.preventDefault();
 
   const idProduto = parseInt(document.getElementById('entrada-produto').value);
+  const cor = (document.getElementById('entrada-cor')?.value || "").trim(); // NOVO
   const fornecedor = document.getElementById('entrada-fornecedor').value.trim();
-
-  // NOVO: fabricante via select
-  const fabricanteEl = document.getElementById('entrada-fabricante');
- const fabricante = document.getElementById('entrada-fabricante')?.value || "";
-
+  const fabricante = document.getElementById('entrada-fabricante')?.value || "";
   const data = document.getElementById('entrada-data').value;
   const custo = parseFloat(document.getElementById('entrada-custo').value);
   const qtd = parseInt(document.getElementById('entrada-qtd').value);
-  const numeroPedido = document.getElementById('entrada-pedido').value.trim();
+  const numeroPedido = (document.getElementById('entrada-pedido')?.value || "").trim();
 
- const dados = { produto_id: idProduto, 
-    fornecedor, 
-    fabricante, 
-    data, custo, 
-    qtd, numero_pedido: numeroPedido };
-
+  const dados = {
+    produto_id: idProduto,
+    fornecedor,
+    fabricante,
+    cor, // NOVO
+    data,
+    custo,
+    qtd,
+    numero_pedido: numeroPedido
+  };
 
   try {
     const response = await fetch(`${API_URL}/compras`, {
@@ -167,11 +162,10 @@ document.getElementById('form-entrada').addEventListener('submit', async functio
     if (response.ok) {
       alert('Entrada registrada!');
       e.target.reset();
-
-      // recarrega tudo para refletir histórico + atualizar lista de fabricantes
       await init();
     } else {
-      alert('Erro ao registrar compra (servidor recusou).');
+      const txt = await response.text();
+      alert('Erro ao registrar compra: ' + txt);
     }
   } catch (error) {
     console.error(error);
@@ -179,7 +173,7 @@ document.getElementById('form-entrada').addEventListener('submit', async functio
   }
 });
 
-// ====== TABELA ======
+// --------- TABELA ESTOQUE ----------
 function renderizarTabela() {
   const tbody = document.querySelector('#tabela-estoque tbody');
   tbody.innerHTML = '';
@@ -212,11 +206,35 @@ function renderizarTabela() {
   });
 }
 
-// ====== HISTÓRICO (agora usa compra.fabricante) ======
+// --------- HISTÓRICO (COM COR) ----------
+function garantirColunaCorNoHistorico() {
+  const theadRow = document.querySelector('#tabela-historico thead tr');
+  if (!theadRow) return;
+
+  // Se já tem "Cor", não adiciona
+  const headers = Array.from(theadRow.querySelectorAll('th')).map(th => th.textContent.trim().toLowerCase());
+  if (headers.includes('cor')) return;
+
+  // Layout atual: Data | Fornecedor | Fabricante | Custo | Qtd | Nº Pedido | Ações
+  // Vamos inserir "Cor" logo após "Fabricante"
+  const thCor = document.createElement('th');
+  thCor.textContent = 'Cor';
+
+  // Insere após o 3º th (Fabricante)
+  const ths = theadRow.querySelectorAll('th');
+  if (ths.length >= 3) {
+    theadRow.insertBefore(thCor, ths[3]); // antes de "Custo Unit."
+  } else {
+    theadRow.appendChild(thCor);
+  }
+}
+
 function verDetalhes(idProduto) {
   const produto = produtos.find(p => p.id === idProduto);
   const modal = document.getElementById('modal-detalhes');
   const tbodyHistorico = document.querySelector('#tabela-historico tbody');
+
+  garantirColunaCorNoHistorico();
 
   document.getElementById('modal-titulo').innerText = `Histórico: ${produto.nome}`;
   tbodyHistorico.innerHTML = '';
@@ -224,7 +242,8 @@ function verDetalhes(idProduto) {
   const historico = produto.historicoCompras || [];
 
   if (historico.length === 0) {
-    tbodyHistorico.innerHTML = '<tr><td colspan="7" style="text-align:center;">Sem histórico.</td></tr>';
+    // agora tem 8 colunas (com Cor)
+    tbodyHistorico.innerHTML = '<tr><td colspan="8" style="text-align:center;">Sem histórico.</td></tr>';
   } else {
     historico.forEach(compra => {
       const tr = document.createElement('tr');
@@ -236,17 +255,19 @@ function verDetalhes(idProduto) {
       const custoNum = parseFloat(compra.custo);
       const pedidoTexto = compra.numero_pedido ? compra.numero_pedido : '-';
       const fabricanteTexto = compra.fabricante ? compra.fabricante : '-';
+      const corTexto = compra.cor ? compra.cor : '-';
 
       tr.innerHTML = `
         <td>${dataFormatada}</td>
         <td>${compra.fornecedor}</td>
         <td>${fabricanteTexto}</td>
+        <td>${corTexto}</td>
         <td>R$ ${custoNum.toFixed(2)}</td>
         <td>${compra.qtd}</td>
         <td>${pedidoTexto}</td>
         <td style="display:flex; gap:5px;">
           <button class="btn-acao btn-editar"
-            onclick="abrirModalEditarCompra(${compra.id}, ${produto.id}, '${compra.fornecedor}', '${fabricanteTexto}', '${dataISO}', ${custoNum}, ${compra.qtd}, '${pedidoTexto}')"
+            onclick="abrirModalEditarCompra(${compra.id}, ${produto.id}, '${compra.fornecedor}', '${fabricanteTexto}', '${corTexto}', '${dataISO}', ${custoNum}, ${compra.qtd}, '${pedidoTexto}')"
             title="Editar Lançamento">✏️</button>
 
           <button class="btn-acao btn-deletar"
@@ -261,82 +282,7 @@ function verDetalhes(idProduto) {
   modal.classList.remove('hidden');
 }
 
-// ====== EXCEL (inclui fabricante da compra) ======
-function exportarParaExcel() {
-  if (produtos.length === 0) { alert("Não há dados!"); return; }
-
-  const dadosEstoque = produtos.map(prod => {
-    let qtdTotal = 0;
-    let custoTotalAcumulado = 0;
-
-    (prod.historicoCompras || []).forEach(compra => {
-      qtdTotal += Number(compra.qtd || 0);
-      custoTotalAcumulado += (parseFloat(compra.custo || 0) * Number(compra.qtd || 0));
-    });
-
-    const custoMedio = qtdTotal > 0 ? (custoTotalAcumulado / qtdTotal).toFixed(2) : "0.00";
-
-    return {
-      "ID": prod.id,
-      "Produto": prod.nome,
-      "Categoria": prod.categoria || "",
-      "Fabricante (Produto)": prod.fabricante || "",
-      "Estoque Atual": qtdTotal,
-      "Custo Médio": `R$ ${custoMedio}`,
-      "Valor Total Investido": `R$ ${custoTotalAcumulado.toFixed(2)}`
-    };
-  });
-
-  const dadosHistorico = [];
-  produtos.forEach(prod => {
-    (prod.historicoCompras || []).forEach(compra => {
-      const dataFormatada = new Date(compra.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-      dadosHistorico.push({
-        "Produto": prod.nome,
-        "Categoria": prod.categoria || "",
-        "Fabricante (Compra)": compra.fabricante || "",
-        "Data": dataFormatada,
-        "Fornecedor": compra.fornecedor,
-        "Qtd": compra.qtd,
-        "Nº Pedido": compra.numero_pedido || "",
-        "Custo Unit": `R$ ${parseFloat(compra.custo).toFixed(2)}`
-      });
-    });
-  });
-
-  const wb = XLSX.utils.book_new();
-  const wsEstoque = XLSX.utils.json_to_sheet(dadosEstoque);
-  XLSX.utils.book_append_sheet(wb, wsEstoque, "Resumo");
-
-  if (dadosHistorico.length > 0) {
-    const wsHist = XLSX.utils.json_to_sheet(dadosHistorico);
-    XLSX.utils.book_append_sheet(wb, wsHist, "Histórico");
-  }
-
-  XLSX.writeFile(wb, "Controle_Estoque_DB.xlsx");
-}
-
-// ====== DELETAR PRODUTO ======
-async function deletarProduto(id) {
-  if (confirm("ATENÇÃO: Isso apagará o produto E TODO O HISTÓRICO dele para sempre. Continuar?")) {
-    try {
-      const response = await fetch(`${API_URL}/produtos/${id}`, { method: 'DELETE' });
-      if (response.ok) {
-        produtos = produtos.filter(p => p.id !== id);
-        renderizarTabela();
-        atualizarSelectProdutos();
-        alert("Produto excluído com sucesso!");
-      } else {
-        alert("Erro ao excluir. O servidor não autorizou.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Erro de conexão ao tentar excluir.");
-    }
-  }
-}
-
-// ====== EDITAR PRODUTO ======
+// --------- EDITAR PRODUTO ----------
 function abrirModalEditar(id) {
   const produto = produtos.find(p => p.id === id);
   if (!produto) return;
@@ -344,9 +290,7 @@ function abrirModalEditar(id) {
   document.getElementById('edit-id').value = produto.id;
   document.getElementById('edit-nome').value = produto.nome;
   document.getElementById('edit-categoria').value = produto.categoria || '';
-  if (document.getElementById('edit-fabricante')) {
-    document.getElementById('edit-fabricante').value = produto.fabricante || '';
-  }
+  document.getElementById('edit-fabricante').value = produto.fabricante || '';
 
   document.getElementById('modal-editar').classList.remove('hidden');
 }
@@ -361,7 +305,7 @@ document.getElementById('form-editar').addEventListener('submit', async function
   const id = parseInt(document.getElementById('edit-id').value);
   const nome = document.getElementById('edit-nome').value.trim();
   const categoria = document.getElementById('edit-categoria').value.trim();
-  const fabricante = document.getElementById('edit-fabricante') ? document.getElementById('edit-fabricante').value.trim() : "";
+  const fabricante = document.getElementById('edit-fabricante').value.trim();
 
   try {
     const response = await fetch(`${API_URL}/produtos/${id}`, {
@@ -371,11 +315,12 @@ document.getElementById('form-editar').addEventListener('submit', async function
     });
 
     if (response.ok) {
-      await init();
       alert("Produto atualizado!");
       fecharModalEditar();
+      await init();
     } else {
-      alert("Erro ao editar produto (servidor recusou).");
+      const txt = await response.text();
+      alert("Erro ao editar produto: " + txt);
     }
   } catch (error) {
     console.error(error);
@@ -383,8 +328,8 @@ document.getElementById('form-editar').addEventListener('submit', async function
   }
 });
 
-// ====== EDITAR COMPRA (agora com fabricante) ======
-function abrirModalEditarCompra(idCompra, idProduto, fornecedor, fabricante, data, custo, qtd, pedido) {
+// --------- EDITAR COMPRA (COM COR) ----------
+function abrirModalEditarCompra(idCompra, idProduto, fornecedor, fabricante, cor, data, custo, qtd, pedido) {
   document.getElementById('edit-compra-id').value = idCompra;
   document.getElementById('edit-compra-prod-id').value = idProduto;
   document.getElementById('edit-compra-fornecedor').value = fornecedor;
@@ -393,12 +338,12 @@ function abrirModalEditarCompra(idCompra, idProduto, fornecedor, fabricante, dat
   document.getElementById('edit-compra-qtd').value = qtd;
   document.getElementById('edit-compra-pedido').value = (pedido === '-' ? '' : pedido);
 
+  // fabricante select
   const editFabEl = document.getElementById('edit-compra-fabricante');
   if (editFabEl) {
-    // se for select, tenta selecionar; se não existir na lista, coloca option temporária
+    // garante opção presente
     let found = false;
     [...editFabEl.options].forEach(o => { if (o.value === fabricante) found = true; });
-
     if (!found && fabricante && fabricante !== '-') {
       const opt = document.createElement('option');
       opt.value = fabricante;
@@ -407,6 +352,10 @@ function abrirModalEditarCompra(idCompra, idProduto, fornecedor, fabricante, dat
     }
     editFabEl.value = (fabricante === '-' ? '' : fabricante);
   }
+
+  // cor (se você adicionar no HTML)
+  const editCorEl = document.getElementById('edit-compra-cor');
+  if (editCorEl) editCorEl.value = (cor === '-' ? '' : cor);
 
   document.getElementById('modal-detalhes').classList.add('hidden');
   document.getElementById('modal-editar-compra').classList.remove('hidden');
@@ -432,13 +381,17 @@ document.getElementById('form-editar-compra').addEventListener('submit', async f
   const fabEditEl = document.getElementById('edit-compra-fabricante');
   const fabricante = fabEditEl ? fabEditEl.value : "";
 
+  const corEditEl = document.getElementById('edit-compra-cor');
+  const cor = corEditEl ? corEditEl.value.trim() : "";
+
   const dados = {
     fornecedor: document.getElementById('edit-compra-fornecedor').value.trim(),
-    fabricante, // <- novo
+    fabricante,
+    cor, // NOVO
     data: document.getElementById('edit-compra-data').value,
     custo: parseFloat(document.getElementById('edit-compra-custo').value),
     qtd: parseInt(document.getElementById('edit-compra-qtd').value),
-    numero_pedido: document.getElementById('edit-compra-pedido').value.trim()
+    numero_pedido: (document.getElementById('edit-compra-pedido')?.value || "").trim()
   };
 
   try {
@@ -451,11 +404,11 @@ document.getElementById('form-editar-compra').addEventListener('submit', async f
     if (response.ok) {
       alert('Histórico corrigido com sucesso!');
       document.getElementById('modal-editar-compra').classList.add('hidden');
-
       await init();
       if (idProduto) verDetalhes(parseInt(idProduto));
     } else {
-      alert('Erro ao salvar. O servidor recusou os dados.');
+      const txt = await response.text();
+      alert('Erro ao salvar: ' + txt);
     }
   } catch (error) {
     console.error(error);
@@ -463,7 +416,7 @@ document.getElementById('form-editar-compra').addEventListener('submit', async f
   }
 });
 
-// ====== DELETAR COMPRA ======
+// --------- DELETAR COMPRA ----------
 async function deletarCompra(idCompra, idProduto) {
   if (confirm("Deseja excluir este lançamento? O estoque total será recalculado.")) {
     try {
@@ -473,11 +426,31 @@ async function deletarCompra(idCompra, idProduto) {
         await init();
         verDetalhes(idProduto);
       } else {
-        alert("Erro ao excluir (servidor recusou).");
+        const txt = await response.text();
+        alert("Erro ao excluir: " + txt);
       }
     } catch (error) {
       console.error(error);
       alert('Erro ao excluir lançamento.');
+    }
+  }
+}
+
+// --------- DELETAR PRODUTO ----------
+async function deletarProduto(id) {
+  if (confirm("ATENÇÃO: Isso apagará o produto E TODO O HISTÓRICO dele para sempre. Continuar?")) {
+    try {
+      const response = await fetch(`${API_URL}/produtos/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        alert("Produto excluído com sucesso!");
+        await init();
+      } else {
+        const txt = await response.text();
+        alert("Erro ao excluir: " + txt);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Erro de conexão ao tentar excluir.");
     }
   }
 }
