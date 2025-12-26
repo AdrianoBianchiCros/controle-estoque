@@ -56,19 +56,27 @@ app.get('/produtos', async (req, res) => {
     const [produtos] = await pool.query('SELECT * FROM produtos ORDER BY id DESC');
 
     for (let prod of produtos) {
-      const [historico] = await pool.query(
-        `SELECT 
-            id, fornecedor, fabricante, data_compra as data, custo, qtd, numero_pedido
-         FROM compras
-         WHERE produto_id = ?
-         ORDER BY data_compra DESC`,
-        [prod.id]
-      );
-
-      prod.historicoCompras = historico.map(h => ({
-        ...h,
-        custo: parseFloat(h.custo)
-      }));
+      try {
+        // Versão nova (com fabricante na compra)
+        const [historico] = await pool.query(
+          `SELECT id, fornecedor, fabricante, data_compra as data, custo, qtd, numero_pedido
+           FROM compras
+           WHERE produto_id = ?
+           ORDER BY data_compra DESC`,
+          [prod.id]
+        );
+        prod.historicoCompras = historico.map(h => ({ ...h, custo: parseFloat(h.custo) }));
+      } catch (e) {
+        // Fallback (caso a coluna fabricante ainda não exista)
+        const [historico] = await pool.query(
+          `SELECT id, fornecedor, data_compra as data, custo, qtd, numero_pedido
+           FROM compras
+           WHERE produto_id = ?
+           ORDER BY data_compra DESC`,
+          [prod.id]
+        );
+        prod.historicoCompras = historico.map(h => ({ ...h, custo: parseFloat(h.custo), fabricante: null }));
+      }
     }
 
     res.json(produtos);
@@ -77,6 +85,7 @@ app.get('/produtos', async (req, res) => {
     res.status(500).send("Erro no servidor");
   }
 });
+
 
 // Criar produto (mantenho como estava; pode ter fabricante também se você usa no cadastro)
 app.post('/produtos', async (req, res) => {
