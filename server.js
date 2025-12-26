@@ -38,7 +38,7 @@ app.get('/fabricantes', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT DISTINCT fabricante
-      FROM compras
+      FROM produtos
       WHERE fabricante IS NOT NULL AND fabricante <> ''
       ORDER BY fabricante
     `);
@@ -49,6 +49,8 @@ app.get('/fabricantes', async (req, res) => {
     res.status(500).send("Erro ao buscar fabricantes");
   }
 });
+
+
 
 
 // Buscar produtos + histórico

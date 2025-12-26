@@ -21,25 +21,49 @@ function mostrarAba(aba) {
 
 // ====== Carregamentos ======
 async function carregarFabricantes() {
-  const el = document.getElementById('entrada-fabricante');
-  if (!el) return; // se ainda não existe no HTML, não quebra
+  const selects = [
+    document.getElementById('entrada-fabricante'),
+    document.getElementById('edit-compra-fabricante')
+  ].filter(Boolean);
+
+  if (selects.length === 0) return;
 
   try {
     const resp = await fetch(`${API_URL}/fabricantes`);
-    fabricantes = await resp.json();
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(`HTTP ${resp.status}: ${txt}`);
+    }
 
-    el.innerHTML = '<option value="">Selecione...</option>';
-    fabricantes.forEach(fab => {
-      const opt = document.createElement('option');
-      opt.value = fab;
-      opt.textContent = fab;
-      el.appendChild(opt);
+    const lista = await resp.json();
+
+    selects.forEach(sel => {
+      sel.innerHTML = '<option value="">Selecione...</option>';
+
+      if (!Array.isArray(lista) || lista.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = "";
+        opt.textContent = "(nenhum fabricante cadastrado)";
+        sel.appendChild(opt);
+        return;
+      }
+
+      lista.forEach(fab => {
+        const opt = document.createElement('option');
+        opt.value = fab;
+        opt.textContent = fab;
+        sel.appendChild(opt);
+      });
     });
+
   } catch (e) {
     console.error("Erro ao carregar fabricantes:", e);
-    el.innerHTML = '<option value="">(erro ao carregar)</option>';
+    selects.forEach(sel => {
+      sel.innerHTML = '<option value="">(erro ao carregar)</option>';
+    });
   }
 }
+
 
 async function init() {
   try {
@@ -119,22 +143,19 @@ document.getElementById('form-entrada').addEventListener('submit', async functio
 
   // NOVO: fabricante via select
   const fabricanteEl = document.getElementById('entrada-fabricante');
-  const fabricante = fabricanteEl ? fabricanteEl.value : "";
+ const fabricante = document.getElementById('entrada-fabricante')?.value || "";
 
   const data = document.getElementById('entrada-data').value;
   const custo = parseFloat(document.getElementById('entrada-custo').value);
   const qtd = parseInt(document.getElementById('entrada-qtd').value);
   const numeroPedido = document.getElementById('entrada-pedido').value.trim();
 
-  const dados = {
-    produto_id: idProduto,
-    fornecedor,
-    fabricante, // <- novo
-    data,
-    custo,
-    qtd,
-    numero_pedido: numeroPedido
-  };
+ const dados = { produto_id: idProduto, 
+    fornecedor, 
+    fabricante, 
+    data, custo, 
+    qtd, numero_pedido: numeroPedido };
+
 
   try {
     const response = await fetch(`${API_URL}/compras`, {
