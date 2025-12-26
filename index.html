@@ -31,6 +31,11 @@
                     <label>Categoria</label>
                     <input type="text" id="prod-cat" placeholder="Ex: Periféricos">
                 </div>
+                <div class="input-group">
+                    <label for="">Fabricante</label>
+                    <input type="text" name="prod-fab" placeholder="Ex: Fabricante" id="">
+
+                </div>
                 <button type="submit" class="btn-submit">Salvar Produto</button>
             </form>
         </section>
@@ -94,6 +99,7 @@
                         <tr>
                             <th>Produto</th>
                             <th>Categoria</th>
+                            <th>Fabricante</th>
                             <th>Qtd Total</th>
                             <th>Custo Médio</th>
                             <th>Ações</th>
@@ -118,6 +124,7 @@
                         <tr>
                             <th>Data</th>
                             <th>Fornecedor</th>
+                             <th>Fabricante</th>
                             <th>Custo Unit.</th>
                             <th>Qtd</th>
                             <th>Nº Pedido</th>
@@ -148,6 +155,12 @@
                     <label>Categoria</label>
                     <input type="text" id="edit-categoria">
                 </div>
+
+                <div class="input-group">
+                    <label>Fabricante</label>
+                    <input type="text" id="edit-fabricante">
+                </div>
+
                 
                 <div class="modal-footer" style="justify-content: space-between;">
                     <button type="button" onclick="fecharModalEditar()" style="background:#ccc; border:none; padding:10px; cursor:pointer; border-radius:5px;">Cancelar</button>
