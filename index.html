@@ -58,11 +58,9 @@
           </select>
         </div>
 
-        <!-- Linha 1: Cor / Fornecedor / Fabricante / Data -->
         <div class="row">
           <div class="input-group">
             <label>Cor</label>
-            <!-- FIX: id único -->
             <input type="text" id="entrada-cor" placeholder="Ex: Preto">
           </div>
 
@@ -84,7 +82,6 @@
           </div>
         </div>
 
-        <!-- Linha 2: Custo / Qtd / Pedido -->
         <div class="row">
           <div class="input-group">
             <label>Preço de Custo (R$) *</label>
@@ -144,6 +141,7 @@
               <th>Data</th>
               <th>Fornecedor</th>
               <th>Fabricante</th>
+              <th>Cor</th>
               <th>Custo Unit.</th>
               <th>Qtd</th>
               <th>Nº Pedido</th>
@@ -182,11 +180,6 @@
           <input type="text" id="edit-fabricante" required>
         </div>
 
-        <div class="input-group">
-            <label>Cor</label>
-            <input type="text" id="edit-compra-cor" placeholder="Ex: Preto">
-        </div>
-
         <div class="modal-footer" style="justify-content: space-between;">
           <button type="button" onclick="fecharModalEditar()" style="background:#ccc; border:none; padding:10px; cursor:pointer; border-radius:5px;">Cancelar</button>
           <button type="submit" class="btn-submit" style="width:auto; margin-top:0;">Salvar Alterações</button>
@@ -205,22 +198,21 @@
 
         <div class="row">
           <div class="input-group">
-            <label>Fornecedor</label>
+            <label>Fornecedor *</label>
             <input type="text" id="edit-compra-fornecedor" required>
           </div>
 
           <div class="input-group">
-            <label>Fabricante</label>
+            <label>Fabricante *</label>
             <select id="edit-compra-fabricante" required>
               <option value="">Carregando fabricantes...</option>
             </select>
           </div>
 
-          <!-- NOVO: Cor -->
-        <div class="input-group">
+          <div class="input-group">
             <label>Cor</label>
             <input type="text" id="edit-compra-cor" placeholder="Ex: Preto">
-        </div>
+          </div>
 
           <div class="input-group">
             <label>Nº Pedido</label>
@@ -230,17 +222,17 @@
 
         <div class="row">
           <div class="input-group">
-            <label>Data</label>
+            <label>Data *</label>
             <input type="date" id="edit-compra-data" required>
           </div>
 
           <div class="input-group">
-            <label>Custo (R$)</label>
+            <label>Custo (R$) *</label>
             <input type="number" step="0.01" id="edit-compra-custo" required>
           </div>
 
           <div class="input-group" style="flex: 0.5;">
-            <label>Qtd</label>
+            <label>Qtd *</label>
             <input type="number" id="edit-compra-qtd" required>
           </div>
         </div>

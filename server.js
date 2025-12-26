@@ -7,16 +7,13 @@ const path = require('path');
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-
 app.use(express.static(__dirname));
 
 let pool;
 
 if (process.env.JAWSDB_URL) {
-  console.log("Conectando ao banco do Heroku...");
   pool = mysql.createPool(process.env.JAWSDB_URL);
 } else {
-  console.log("Conectando ao banco Local...");
   pool = mysql.createPool({
     host: 'localhost',
     user: 'root',
@@ -32,7 +29,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Fabricantes vindo de PRODUTOS (Opção B)
+// Fabricantes vindo de produtos
 app.get('/fabricantes', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -48,22 +45,16 @@ app.get('/fabricantes', async (req, res) => {
   }
 });
 
-// Buscar tudo
+// Produtos + histórico (com cor)
 app.get('/produtos', async (req, res) => {
   try {
     const [produtos] = await pool.query('SELECT * FROM produtos ORDER BY id DESC');
 
-    for (let prod of produtos) {
+    for (const prod of produtos) {
       const [historico] = await pool.query(
-        `SELECT 
-            id,
-            fornecedor,
-            fabricante,
-            cor,
-            data_compra as data,
-            custo,
-            qtd,
-            numero_pedido
+        `SELECT
+          id, fornecedor, fabricante, cor,
+          data_compra as data, custo, qtd, numero_pedido
          FROM compras
          WHERE produto_id = ?
          ORDER BY data_compra DESC`,
@@ -78,33 +69,29 @@ app.get('/produtos', async (req, res) => {
 
     res.json(produtos);
   } catch (err) {
-    console.error(err);
+    console.error("ERRO /produtos:", err);
     res.status(500).send("Erro no servidor");
   }
 });
 
-// Criar Produto
+// Criar produto
 app.post('/produtos', async (req, res) => {
   const { nome, categoria, fabricante } = req.body;
+
   try {
     const [result] = await pool.execute(
       'INSERT INTO produtos (nome, categoria, fabricante) VALUES (?, ?, ?)',
       [nome, categoria || null, fabricante || null]
     );
-    res.json({
-      id: result.insertId,
-      nome,
-      categoria: categoria || '',
-      fabricante: fabricante || '',
-      historicoCompras: []
-    });
+
+    res.json({ id: result.insertId, nome, categoria: categoria || '', fabricante: fabricante || '', historicoCompras: [] });
   } catch (err) {
-    console.error(err);
+    console.error("ERRO POST /produtos:", err);
     res.status(500).send("Erro ao salvar produto");
   }
 });
 
-// Nova Compra (COM cor)
+// Nova compra (com cor)
 app.post('/compras', async (req, res) => {
   const { produto_id, fornecedor, fabricante, cor, data, custo, qtd, numero_pedido } = req.body;
 
@@ -114,46 +101,14 @@ app.post('/compras', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [produto_id, fornecedor, fabricante || null, cor || null, data, custo, qtd, numero_pedido || null]
     );
-
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error("ERRO POST /compras:", err);
     res.status(500).send("Erro ao salvar compra");
   }
 });
 
-// Deletar Produto
-app.delete('/produtos/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    await pool.execute('DELETE FROM compras WHERE produto_id = ?', [id]);
-    const [result] = await pool.execute('DELETE FROM produtos WHERE id = ?', [id]);
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Produto não encontrado." });
-    res.json({ success: true });
-  } catch (err) {
-    console.error("ERRO:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Editar Produto
-app.put('/produtos/:id', async (req, res) => {
-  const { id } = req.params;
-  const { nome, categoria, fabricante } = req.body;
-
-  try {
-    await pool.execute(
-      'UPDATE produtos SET nome = ?, categoria = ?, fabricante = ? WHERE id = ?',
-      [nome, categoria || null, fabricante || null, id]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Erro ao atualizar produto");
-  }
-});
-
-// Editar Compra (COM cor)
+// Editar compra (com cor)  ✅ AQUI é onde geralmente faltava
 app.put('/compras/:id', async (req, res) => {
   const { id } = req.params;
   const { fornecedor, fabricante, cor, data, custo, qtd, numero_pedido } = req.body;
@@ -165,23 +120,53 @@ app.put('/compras/:id', async (req, res) => {
        WHERE id=?`,
       [fornecedor, fabricante || null, cor || null, data, custo, qtd, numero_pedido || null, id]
     );
-
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error("ERRO PUT /compras:", err);
     res.status(500).send("Erro ao atualizar compra");
   }
 });
 
-// Deletar Compra
+// Deletar compra
 app.delete('/compras/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await pool.execute('DELETE FROM compras WHERE id = ?', [id]);
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error("ERRO DELETE /compras:", err);
     res.status(500).send("Erro ao deletar compra");
+  }
+});
+
+// Editar produto
+app.put('/produtos/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nome, categoria, fabricante } = req.body;
+
+  try {
+    await pool.execute(
+      'UPDATE produtos SET nome=?, categoria=?, fabricante=? WHERE id=?',
+      [nome, categoria || null, fabricante || null, id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("ERRO PUT /produtos:", err);
+    res.status(500).send("Erro ao atualizar produto");
+  }
+});
+
+// Deletar produto
+app.delete('/produtos/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.execute('DELETE FROM compras WHERE produto_id = ?', [id]);
+    const [result] = await pool.execute('DELETE FROM produtos WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ message: "Produto não encontrado." });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("ERRO DELETE /produtos:", err);
+    res.status(500).send("Erro ao deletar produto");
   }
 });
 
