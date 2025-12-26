@@ -45,10 +45,11 @@ app.get('/fabricantes', async (req, res) => {
 
     res.json(rows.map(r => r.fabricante));
   } catch (err) {
-    console.error(err);
+    console.error("ERRO /fabricantes:", err);
     res.status(500).send("Erro ao buscar fabricantes");
   }
 });
+
 
 // Buscar produtos + histórico
 app.get('/produtos', async (req, res) => {
