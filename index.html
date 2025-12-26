@@ -53,7 +53,7 @@
 
       <form id="form-entrada">
         <div class="input-group">
-          <label>Selecione o Produto</label>
+          <label>Selecione o Produto *</label>
           <select id="entrada-produto" required>
             <option value="">Carregando produtos...</option>
           </select>
@@ -61,12 +61,12 @@
 
         <div class="row">
           <div class="input-group">
-            <label>Fornecedor</label>
+            <label>Fornecedor *</label>
             <input type="text" id="entrada-fornecedor" placeholder="Ex: Fornecedor A" required>
           </div>
 
           <div class="input-group">
-            <label>Fabricante</label>
+            <label>Fabricante *</label>
             <!-- FIX: agora é SELECT vindo do banco -->
             <select id="entrada-fabricante" required>
               <option value="">Carregando fabricantes...</option>
@@ -74,24 +74,24 @@
           </div>
 
           <div class="input-group">
-            <label>Data da Compra</label>
+            <label>Data da Compra *</label>
             <input type="date" id="entrada-data" required>
           </div>
         </div>
 
         <div class="row">
           <div class="input-group">
-            <label>Preço de Custo (R$)</label>
+            <label>Preço de Custo (R$) *</label>
             <input type="number" step="0.01" id="entrada-custo" required>
           </div>
 
           <div class="input-group" style="flex: 0.5;">
-            <label>Qtd</label>
+            <label>Qtd *</label>
             <input type="number" id="entrada-qtd" required>
           </div>
 
           <div class="input-group">
-            <label>Nº Pedido</label>
+            <label>Nº Pedido *</label>
             <input type="text" id="entrada-pedido" placeholder="Ex: 12345">
           </div>
         </div>
@@ -162,18 +162,18 @@
         <input type="hidden" id="edit-id">
 
         <div class="input-group">
-          <label>Nome do Produto</label>
+          <label>Nome do Produto *</label>
           <input type="text" id="edit-nome" required>
         </div>
 
         <div class="input-group">
-          <label>Categoria</label>
-          <input type="text" id="edit-categoria">
+          <label>Categoria *</label>
+          <input type="text" id="edit-categoria" required>
         </div>
 
         <div class="input-group">
-          <label>Fabricante</label>
-          <input type="text" id="edit-fabricante">
+          <label>Fabricante *</label>
+          <input type="text" id="edit-fabricante" required>
         </div>
 
         <div class="modal-footer" style="justify-content: space-between;">
