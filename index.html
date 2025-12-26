@@ -36,9 +36,14 @@
 
         <div class="input-group">
           <label>Fabricante</label>
-          <!-- FIX: id correto -->
           <input type="text" id="prod-fab" placeholder="Ex: Logitech">
         </div>
+
+        <div class="input-group">
+            <label>Cor</label>
+            <input type="text" id="edit-compra-cor" placeholder="Ex: Preto">
+        </div>
+
 
         <button type="submit" class="btn-submit">Salvar Produto</button>
       </form>
@@ -59,7 +64,14 @@
           </select>
         </div>
 
+        <!-- Linha 1: Cor / Fornecedor / Fabricante / Data -->
         <div class="row">
+          <div class="input-group">
+            <label>Cor</label>
+            <!-- FIX: id único -->
+            <input type="text" id="entrada-cor" placeholder="Ex: Preto">
+          </div>
+
           <div class="input-group">
             <label>Fornecedor *</label>
             <input type="text" id="entrada-fornecedor" placeholder="Ex: Fornecedor A" required>
@@ -67,7 +79,6 @@
 
           <div class="input-group">
             <label>Fabricante *</label>
-            <!-- FIX: agora é SELECT vindo do banco -->
             <select id="entrada-fabricante" required>
               <option value="">Carregando fabricantes...</option>
             </select>
@@ -79,6 +90,7 @@
           </div>
         </div>
 
+        <!-- Linha 2: Custo / Qtd / Pedido -->
         <div class="row">
           <div class="input-group">
             <label>Preço de Custo (R$) *</label>
@@ -91,7 +103,7 @@
           </div>
 
           <div class="input-group">
-            <label>Nº Pedido *</label>
+            <label>Nº Pedido</label>
             <input type="text" id="entrada-pedido" placeholder="Ex: 12345">
           </div>
         </div>
@@ -200,7 +212,6 @@
 
           <div class="input-group">
             <label>Fabricante</label>
-            <!-- NOVO: editar fabricante via lista -->
             <select id="edit-compra-fabricante" required>
               <option value="">Carregando fabricantes...</option>
             </select>
